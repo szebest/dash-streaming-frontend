@@ -1,0 +1,14 @@
+.container {
+  margin: 1rem;
+
+  .content {
+    display: flex;
+    grid-template-columns: repeat(4, 1fr);
+    flex-wrap: wrap;
+  
+    >* {
+      max-width: auto;
+      flex-grow: 0;
+    }
+  }
+}

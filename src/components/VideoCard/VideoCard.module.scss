@@ -1,0 +1,43 @@
+.link {
+  text-decoration: none;
+
+  .container {
+    margin: 1rem;
+    position: relative;
+    max-width: 200px;
+  
+    &__thumb {
+      border-radius: 10px;
+      transition: border-radius 500ms ease-in-out;
+
+      box-shadow: 0 0 1px black;
+    }
+  
+    &:hover {
+      .container__thumb {
+        border-radius: inherit;
+      }
+    }
+  
+    &__title {
+      max-width: 100%;
+
+      .text {
+        word-wrap: break-word;
+        margin: 4px 0;
+        line-height: 1.25;
+        color: initial;
+      }
+    }
+  
+    &__videoPlayer {
+      position: absolute;
+      inset: 0;
+      display: none;
+  
+      &.visible {
+        display: initial;
+      }
+    }
+  }
+}

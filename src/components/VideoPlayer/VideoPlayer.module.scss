@@ -1,0 +1,322 @@
+.container {
+  position: relative;
+
+  video {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: fill;
+    pointer-events: none;
+  }
+
+  .ui {
+    transition: opacity 200ms ease-in-out;
+    opacity: 0;
+
+    &:hover, &.paused {
+      opacity: 1;
+    }
+
+    position: absolute;
+    inset: 0;
+
+    .clickable {
+      position: absolute;
+      inset: 0;
+      bottom: calc(var(--controls-height));
+    }
+
+    .time__simplified {
+      position: absolute;
+      inset: 0;
+      top: calc(100% - var(--controls-height) - 20px);
+      left: calc(var(--side-margin) + 5px);
+      color: white;
+      filter: drop-shadow( 0px 0px 2px black);
+      font-size: 0.75rem;
+    }
+
+    .timeline__wrapper {
+      position: absolute;
+      inset: 0;
+      top: calc(100% - var(--controls-height));
+
+      .timeline {
+        background-color: rgba(100, 100, 100, .5);
+        height: 3px;
+        width: calc(100% - var(--side-margin) * 2);
+        margin: 0 var(--side-margin);
+        position: relative;
+        z-index: 1000;
+        cursor: pointer;
+        transition: all 100ms ease-in-out;
+
+        .thumb {
+          width: 5px;
+          transition: width 200ms ease-in-out;
+        }
+
+        &:hover, &.scrubbing {
+          height: 5px;
+          transform: translateY(-1px);
+
+          .thumb {
+            position: absolute;
+            transform: translate(50%, calc(-50% + 3px));
+            right: calc(100% - var(--progress-position) * 100%);
+            width: 15px;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            background-color: red;
+          }
+        }
+
+        &::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          right: calc(100% - var(--progress-position) * 100%);
+          background-color: red;
+        }
+      }
+    }
+
+    .simplified-controls, .controls {
+      color: white;
+
+      button {
+        display: flex;
+        align-items: center;
+        background: none;
+        border: none;
+        color: inherit;
+        padding: 0;
+        height: 30px;
+        width: 30px;
+        font-size: 1.1rem;
+        cursor: pointer;
+        opacity: .85;
+        transition: opacity 150ms ease-in-out;
+      }
+
+      svg, span {
+        filter: drop-shadow( 0px 0px 5px black);
+      }
+    }
+
+    .simplified-controls {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      background-color: black;
+      opacity: 0.5;
+      height: 30px;
+
+      .volume {
+        .mute {
+          .volume-high-icon,
+          .volume-low-icon,
+          .volume-muted-icon {
+            display: none;
+
+            &.visible {
+              display: initial;
+            }
+          }
+        }
+      }
+    }
+
+    .controls {
+      position: absolute;
+      inset: 0;
+      top: calc(100% - var(--controls-height));
+      margin: 0 calc(var(--side-margin) * 1.5);
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .left,
+      .right {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: var(--side-margin);
+      }
+
+      .left {
+        .play-pause-btn {
+
+          .play-icon,
+          .pause-icon {
+            display: none;
+
+            &.visible {
+              display: initial;
+            }
+          }
+        }
+
+        .volume {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+
+          .mute {
+            .volume-high-icon,
+            .volume-low-icon,
+            .volume-muted-icon {
+              display: none;
+
+              &.visible {
+                display: initial;
+              }
+            }
+          }
+
+          .range {
+            opacity: 0;
+            width: 0;
+            transition: width 250ms ease-in-out;
+
+            .slider {
+              position: relative;
+              appearance: none;
+              background: transparent;
+              cursor: pointer;
+              width: 100%;
+
+              &::-webkit-slider-thumb {
+                box-shadow: 1px 1px 1px #000000;
+                border: 1px solid #000000;
+                height: 30px;
+                width: 15px;
+                border-radius: 5px;
+                background: #FFFFFF;
+                cursor: pointer;
+                -webkit-appearance: none;
+                margin-top: -11px;
+              }
+
+              &::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                right: calc(100% - var(--progress) * 100% + 10.5% * var(--progress));
+                background-color: red;
+              }
+
+              &::-webkit-slider-runnable-track {
+                max-width: 150px;
+                height: 5px;
+                background: white;
+                border: none;
+                border-radius: 3px;
+              }
+            }
+          }
+
+          &:hover {
+            .range {
+              opacity: 1;
+              width: 133px;
+              display: flex;
+              align-items: center;
+            }
+          }
+        }
+
+        .time {
+          .text {
+            user-select: none;
+          }
+        }
+      }
+
+      .right {
+        .resolution {
+          .toggle {
+            .selected {
+              background-color: gray;
+            }
+
+            >button {
+              &::after {
+                display: none;
+              }
+            }
+
+            >div {
+              max-height: 200px;
+              overflow-y: auto;
+              background-color: black;
+              opacity: 0.7;
+
+              >hr {
+                background: white;
+              }
+              
+              >a {
+                color: white;
+
+                &:hover {
+                  background-color: gray;
+                }
+
+                &:focus {
+                  background-color: lightgray;
+                }
+              }
+            }
+          }
+        }
+
+        .speed {
+          .toggle {
+            .selected {
+              background-color: gray;
+            }
+
+            >button {
+              &::after {
+                display: none;
+              }
+            }
+
+            >div {
+              max-height: 200px;
+              overflow-y: auto;
+              background-color: black;
+              opacity: 0.7;
+              
+              >a {
+                color: white;
+
+                &:hover {
+                  background-color: gray;
+                }
+
+                &:focus {
+                  background-color: lightgray;
+                }
+              }
+            }
+          }
+        }
+
+        .full-screen-btn {
+          .open, .close {
+            display: none;
+
+            &.visible {
+              display: initial;
+            }
+          }
+        }
+      }
+    }
+  }
+}
