@@ -54,6 +54,7 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
   const [timelineEl, setTimelineEl] = useState<HTMLDivElement | null>(null);
 
   const [playerProgress, setPlayerProgress] = useState<number>(0);
+  const [playerBufferedProgress, setPlayerBufferedProgress] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(paused);
   const [volume, setVolume] = useState<number>(50);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -86,16 +87,21 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
   }, [volume])
 
   useEffect(() => {
-    if (!videoEl) return;
+    if (!videoEl || !player) return;
 
     const intervalId = setInterval(() => {
       onTimeUpdate(videoEl.currentTime, videoEl.duration);
-    }, 10);
+    }, 25);
+
+    const intervalBufferedId = setInterval(() => {
+      setPlayerBufferedProgress(player.getBufferedFromCurrentTime(videoEl.currentTime) / videoEl.duration);
+    }, 25);
 
     return () => {
       clearInterval(intervalId);
+      clearInterval(intervalBufferedId);
     }
-  }, [videoEl])
+  }, [videoEl, player])
 
   useEffect(() => {
     document.addEventListener("mousemove", handleTimelineUpdate);
@@ -295,8 +301,11 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
               </div>
             }
             <div className={styles.timeline__wrapper}>
-              <div className={`${styles.timeline} ${isScrubbing ? styles.scrubbing : ''}`} id={timelineId} style={{["--progress-position" as any]: playerProgress}} onMouseDown={seeking as any}>
+              <div className={`${styles.timeline} ${isScrubbing ? styles.scrubbing : ''}`} id={timelineId} style={{["--progress-position" as any]: playerProgress, ["--buffered-position" as any]: playerBufferedProgress}} onMouseDown={seeking as any}>
                 <div className={styles.thumb}></div>
+                {videoEl && !isNaN(videoEl.duration) &&
+                  <div className={styles.info}>{formatTime(playerProgress * videoEl.duration)}</div>
+                }
               </div>
             </div>
           </div>

@@ -95,6 +95,20 @@ export class Player {
     return this.videoQualityIndex;
   }
 
+  getBufferedFromCurrentTime(currentTime: number): number {
+    const buffered = this.videoSourceBuffer?.buffered;
+
+    if (!buffered) return 0;
+
+    for (let i = 0; i < buffered.length; i++) {
+      if (currentTime >= buffered.start(i) && currentTime <= buffered.end(i)) {
+        return buffered.end(i);
+      }
+    }
+
+    return 0;
+  }
+
   onResolutionChange(qualityId: number): void {
     if (qualityId === this.videoQualityIndex) return;
 
