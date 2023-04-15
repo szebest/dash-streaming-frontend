@@ -16,7 +16,7 @@ export class Player {
   private videoSets: any;
   private audioSets: any;
 
-  private FETCH_TIME = 5;
+  private FETCH_TIME = 10;
 
   private controller: AbortController;
   private signal: AbortSignal;
@@ -243,15 +243,29 @@ export class Player {
     }
   }
 
+
+
   init() {
     this.initialized = true;
 
+    const startTime = Date.now();
+
     (new ManifestParser(this.video_id)).getJSONManifest()
       .then((adaptSetsObj: any) => {  
+        const endTime = Date.now();
+        let fetchDuration = endTime - startTime;
+
+        let decrement = -1;
+
+        while (fetchDuration >= 1000) {
+          decrement--;
+          fetchDuration -= 1000;
+        }
+
         this.videoSets = adaptSetsObj["video/webm"];
         this.audioSets = adaptSetsObj["audio/webm"];
-
-        this.videoQualityIndex = this.videoSets.representations.length - 1;
+        
+        this.videoQualityIndex = Math.max(0, this.videoSets.representations.length + decrement);
 
         this.videoSourceBuffer = this.mse.addSourceBuffer(`video/webm; codecs="${this.videoSets["codecs"]}"`);
         this.audioSourceBuffer = this.mse.addSourceBuffer(`audio/webm; codecs="${this.audioSets["codecs"]}"`);
