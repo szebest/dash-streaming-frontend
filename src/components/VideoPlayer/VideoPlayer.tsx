@@ -68,6 +68,10 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
   const player = useVideoSrc(video, paused, videoEl);
 
   useEffect(() => {
+    setIsPaused(paused);
+  }, [paused])
+
+  useEffect(() => {
     const video = document.getElementById(id) as HTMLVideoElement;
     const container = document.getElementById(containerId) as HTMLDivElement;
     const timeline = document.getElementById(timelineId) as HTMLDivElement;
