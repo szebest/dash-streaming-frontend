@@ -16,7 +16,7 @@ export class Player {
   private videoSets: any;
   private audioSets: any;
 
-  private FETCH_TIME = 10;
+  private FETCH_TIME = 20;
 
   private controller: AbortController;
   private signal: AbortSignal;
@@ -32,14 +32,16 @@ export class Player {
   private tempQualityId: number;
 
   constructor(video_id: string, paused: boolean, videoElement: HTMLVideoElement) {
+    this.videoElement = videoElement;
+    this.clear();
+    
     this.fetching = false;
     this.reading = false;
     this.fetchIntervalId = null;
     this.mse = new window.MediaSource;
     videoElement.src = this.objectUrl;
-
+    
     this.video_id = video_id;
-    this.videoElement = videoElement;
     this.audioQueue = new Queue();
     this.videoQueue = new Queue();
 
@@ -53,25 +55,14 @@ export class Player {
 
     this.retryTimer = new RetryTimer();
 
-    this.videoElement.addEventListener("timeupdate", (e) => this.onTimeChange(e));
-
-    this.videoElement.addEventListener("play", () => this.checkPlayerStatus());
-    this.videoElement.addEventListener("seeking", (e) => this.onTimeChange(e));
+    this.videoElement.addEventListener("timeupdate", (e) => this.onTimeChange.bind(this)(e));
+    this.videoElement.addEventListener("play", (e) => this.onTimeChange.bind(this)(e));
 
     this.mse.addEventListener("sourceopen", () => {
       if (!paused && !this.initialized) {
         this.init.bind(this)();
       }
     });
-  }
-  
-  changePlayingState(play: boolean): void {
-    if (play) {
-      this.videoElement.play().catch(() => {});
-    }
-    else {
-      this.videoElement.pause();
-    }
   }
 
   get objectUrl() {
@@ -93,6 +84,11 @@ export class Player {
     if (this.automaticQuality) return -1;
 
     return this.videoQualityIndex;
+  }
+
+  clear(): void {
+    this.videoElement.removeEventListener("timeupdate", (e) => this.onTimeChange.bind(this)(e));
+    this.videoElement.removeEventListener("play", (e) => this.onTimeChange.bind(this)(e));
   }
 
   getBufferedFromCurrentTime(currentTime: number): number {
@@ -143,12 +139,12 @@ export class Player {
     this.checkPlayerStatus();
 
     if (this.fetchIntervalId) {
-      clearInterval(this.fetchIntervalId);
+      clearTimeout(this.fetchIntervalId);
       this.fetchIntervalId = null;
     }
 
     if (this.reading || !this.videoSourceBuffer) {
-      this.fetchIntervalId = setInterval(() => this.onTimeChange(e), 10);
+      this.fetchIntervalId = setTimeout(() => this.onTimeChange.bind(this)(e), 1000);
 
       return;
     }
@@ -166,7 +162,9 @@ export class Player {
   }
 
   checkAndDoFetchRequest(time: number, next: boolean): void {
-    const buffered = this.videoSourceBuffer!.buffered;
+    const buffered = this.videoSourceBuffer?.buffered;
+
+    if (!buffered) return;
 
     let hasToDoNextFetch = true;
     let savedIndex = 0;
@@ -194,8 +192,6 @@ export class Player {
     }
 
     if (hasToDoNextFetch) {
-      this.reading = true;
-
       const intervalId = setInterval(() => {
         this.videoSourceBuffer!.abort();
         if (this.fetching && this.mse.readyState === 'open') return;
@@ -243,8 +239,6 @@ export class Player {
     }
   }
 
-
-
   init() {
     this.initialized = true;
 
@@ -291,10 +285,10 @@ export class Player {
     this.controller = new AbortController();
     this.signal = this.controller.signal;
 
-    this.fetching = true;
-    this.reading = true;
-
     if (this.videoMediaIndex < timestamp_info["media"].length) {
+      this.fetching = true;
+      this.reading = true;
+
       this._throttleQualityOnFeedback((finish: any) => {
         fetch(`${API_BASE_URL}${videoRepresentation["url"]}`, {
           headers: {

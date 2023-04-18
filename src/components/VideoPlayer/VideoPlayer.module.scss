@@ -16,6 +16,17 @@
       opacity: 1;
     }
 
+    &.loading {
+      opacity: 1;
+
+      &:not(:hover), &:not(.paused) {
+        >*:not(.loader) {
+          opacity: 0;
+          transition: opacity 200ms ease-in-out;
+        }
+      }
+    }
+
     position: absolute;
     inset: 0;
 
@@ -23,6 +34,14 @@
       position: absolute;
       inset: 0;
       bottom: calc(var(--controls-height));
+    }
+
+    .loader {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .time__simplified {

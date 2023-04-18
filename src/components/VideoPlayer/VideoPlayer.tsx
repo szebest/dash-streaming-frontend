@@ -5,6 +5,7 @@ import Dropdown from 'react-bootstrap/Dropdown';
 import { DropdownButton } from "react-bootstrap";
 
 import styles from './VideoPlayer.module.scss';
+import LoadingSpinner from "../LoadingSpinner/LoadingSpinner";
 
 let uniqueId = 0;
 let containerUniqueId = 0;
@@ -61,6 +62,8 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
   const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
   const [wasPaused, setWasPaused] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(muted);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [wasPausedBeforeLoading, setWasPausedBeforeLoading] = useState<boolean>(false);
 
   const player = useVideoSrc(video, paused, videoEl);
 
@@ -90,22 +93,42 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
     if (!videoEl || !player) return;
 
     const intervalId = setInterval(() => {
-      onTimeUpdate(videoEl.currentTime, videoEl.duration);
-    }, 25);
+      setPlayerProgress(videoEl.currentTime / videoEl.duration);
 
-    const intervalBufferedId = setInterval(() => {
-      setPlayerBufferedProgress(player.getBufferedFromCurrentTime(videoEl.currentTime) / videoEl.duration);
-    }, 25);
+      const buffered = player.getBufferedFromCurrentTime(videoEl.currentTime);
+
+      setPlayerBufferedProgress(buffered / videoEl.duration);
+    }, 10);
 
     return () => {
       clearInterval(intervalId);
-      clearInterval(intervalBufferedId);
     }
   }, [videoEl, player])
 
   useEffect(() => {
-    document.addEventListener("mousemove", handleTimelineUpdate);
-    document.addEventListener('mouseup', seekEnd);
+    if (!videoEl) return;
+
+    const playerTime = playerProgress * videoEl.duration;
+    const videoDuration = videoEl.duration;
+    const bufferedTime = playerBufferedProgress * videoEl.duration;
+
+    if (!isPaused && bufferedTime - playerTime <= 2 && videoDuration - playerTime > 2.1) {
+      setIsLoading(true);
+      setWasPausedBeforeLoading(isPaused);
+      setIsPaused(true);
+    }
+    else if (isLoading && (bufferedTime - playerTime >= 5 || videoDuration - playerTime <= 2.1 || videoDuration - bufferedTime <= 0.2)) {
+      setIsLoading(false);
+      setIsPaused(wasPausedBeforeLoading);
+      setWasPausedBeforeLoading(false);
+    }
+  }, [isPaused, playerProgress, playerBufferedProgress, videoEl])
+
+  useEffect(() => {
+    if (isScrubbing) {
+      document.addEventListener("mousemove", handleTimelineUpdate);
+      document.addEventListener('mouseup', seekEnd);
+    }
 
     if (seekingHandler) {
       seekingHandler(isScrubbing);
@@ -120,7 +143,18 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
   useEffect(() => {
     if (!videoEl) return;
 
-    setIsPaused(videoEl.paused);
+    if (isPaused && !videoEl.paused) {
+      videoEl.pause();
+    }
+    else if (videoEl.paused) {
+      videoEl.play().catch(() => setIsPaused(true));
+    }
+  }, [isPaused, videoEl])
+
+  useEffect(() => {
+    if (!videoEl) return;
+
+    setIsPaused(videoEl.paused)
   }, [videoEl?.paused])
 
   useEffect(() => {
@@ -129,28 +163,22 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
     setIsFullscreen(shouldBeFullscreen);
   }, [document.fullscreenElement])
 
-  function onTimeUpdate(currentTime: number, duration: number): void {
-    setPlayerProgress(currentTime / duration);
-  }
 
   function togglePlay(): void {
-    if (!videoEl) return;
+    if (!videoEl || isLoading) return;
 
-    let newValue = !isPaused;
+    setIsPaused((prev) => {
+      let newValue = !prev;
 
-    if (videoEl.duration - videoEl.currentTime <= 0.2) {
-      setPlayerProgress(0);
-      videoEl.currentTime = 0;
+      if (videoEl.duration - videoEl.currentTime <= 0.2) {
+        setPlayerProgress(0);
+        videoEl.currentTime = 0;
+  
+        newValue = false;
+      }
 
-      newValue = false;
-    }
-
-    if (newValue) {
-      videoEl.pause();
-    }
-    else {
-      videoEl.play();
-    }
+      return newValue;
+    })
   }
 
   function toggleFullscreen(): void {
@@ -216,7 +244,7 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
     setIsScrubbing(true);
     setWasPaused(videoEl.paused);
 
-    videoEl.pause();
+    setIsPaused(true);
   }
 
   function seekEnd(e: MouseEvent): void {
@@ -227,12 +255,7 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
 
     setIsScrubbing(false);
 
-    if (wasPaused) {
-      videoEl.pause();
-    }
-    else {
-      videoEl.play().catch(() => {})
-    }
+    setIsPaused(wasPaused);
   }
 
   function handleTimelineUpdate(e: MouseEvent): void {
@@ -256,7 +279,6 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
 
   function handleOnDoubleClick(): void {
     toggleFullscreen();
-    togglePlay();
   }
 
   function handleChangeResolution(qualityId: number): void {
@@ -272,6 +294,8 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
   }
 
   function formatTime(time: number): string {
+    if (isNaN(time)) return "-";
+
     const date = new Date(0);
     date.setSeconds(time);
     
@@ -289,7 +313,12 @@ export function VideoPlayer({ video, paused, autoPlay = true, muted = false, con
 
   return (
     <div className={styles.container} id={containerId} style={{["--side-margin" as any]: TOTAL_MARGIN / 2 + 'px'}}>
-      <div className={`${styles.ui} ${isPaused ? styles.paused : ''}`} style={{["--controls-height" as any]: CONTROLS_HEIGHT + 'px'}}>
+      <div className={`${styles.ui} ${isPaused ? styles.paused : ''} ${isLoading ? styles.loading : ''}`} style={{["--controls-height" as any]: CONTROLS_HEIGHT + 'px'}}>
+        {isLoading &&
+          <div className={styles.loader}>
+            <LoadingSpinner />
+          </div>
+        }
         <div className={styles.clickable} onClick={handleOnClick} onDoubleClick={handleOnDoubleClick}>
 
         </div>

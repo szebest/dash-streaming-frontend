@@ -10,15 +10,8 @@ export function useVideoSrc(videoId: string, paused: boolean, videoElement: HTML
   }, [videoId, videoElement]);
 
   useEffect(() => {
-    return () => {
-      player?.changePlayingState(false);
-    }
-  }, [videoId, videoElement, paused])
-
-  useEffect(() => {
     if (!paused) {
       player?.checkInit();
-      player?.changePlayingState(true);
     }
   }, [videoId, videoElement, paused])
 
