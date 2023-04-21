@@ -55,8 +55,8 @@ export class Player {
 
     this.retryTimer = new RetryTimer();
 
-    this.videoElement.addEventListener("timeupdate", (e) => this.onTimeChange.bind(this)(e));
-    this.videoElement.addEventListener("play", (e) => this.onTimeChange.bind(this)(e));
+    this.videoElement.addEventListener("timeupdate", () => this.onTimeChange.bind(this)());
+    this.videoElement.addEventListener("play", () => this.onTimeChange.bind(this)());
 
     this.mse.addEventListener("sourceopen", () => {
       if (!paused && !this.initialized) {
@@ -87,8 +87,8 @@ export class Player {
   }
 
   clear(): void {
-    this.videoElement.removeEventListener("timeupdate", (e) => this.onTimeChange.bind(this)(e));
-    this.videoElement.removeEventListener("play", (e) => this.onTimeChange.bind(this)(e));
+    this.videoElement.removeEventListener("timeupdate", () => this.onTimeChange.bind(this)());
+    this.videoElement.removeEventListener("play", () => this.onTimeChange.bind(this)());
   }
 
   getBufferedFromCurrentTime(currentTime: number): number {
@@ -106,7 +106,7 @@ export class Player {
   }
 
   onResolutionChange(qualityId: number): void {
-    if (qualityId === this.videoQualityIndex) return;
+    if (qualityId === this.videoQualityIndex && !this.automaticQuality) return;
 
     if (qualityId < 0) {
       this.automaticQuality = true;
@@ -135,7 +135,7 @@ export class Player {
     }, 10)
   }
 
-  onTimeChange(e: Event): void {
+  onTimeChange(): void {
     this.checkPlayerStatus();
 
     if (this.fetchIntervalId) {
@@ -143,14 +143,13 @@ export class Player {
       this.fetchIntervalId = null;
     }
 
-    if (this.reading || !this.videoSourceBuffer) {
-      this.fetchIntervalId = setTimeout(() => this.onTimeChange.bind(this)(e), 1000);
+    if (this.reading) {
+      this.fetchIntervalId = setTimeout(() => this.onTimeChange.bind(this)(), 1000);
 
       return;
     }
 
-    const target = e.target! as HTMLVideoElement;
-    const currentTime = target.currentTime;
+    const currentTime = this.videoElement.currentTime;
 
     this.checkAndDoFetchRequest(currentTime, true);
   }
@@ -202,6 +201,8 @@ export class Player {
         this.controller.abort();
 
         this.fetchVideoNextTimeSlice();
+
+        this.videoElement.dispatchEvent(new Event("play"));
 
         clearInterval(intervalId);
       }, 10)
