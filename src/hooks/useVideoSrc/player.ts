@@ -295,7 +295,7 @@ export class Player {
       this.fetching = true;
       this.reading = true;
 
-      this._throttleQualityOnFeedback((finish: any) => {
+      this._throttleQualityOnFeedback3((finish: any) => {
         fetch(`${API_BASE_URL}${videoRepresentation["url"]}`, {
           headers: {
             range: this.videoMediaIndex === 0 ? `bytes=${this.videoQueue.numBytesWrittenInSegment}-${calculateByteRangeEnd(timestamp_info["media"][this.videoMediaIndex])}` : `bytes=${createByteRangeString(this.videoQueue.numBytesWrittenInSegment, timestamp_info["media"][this.videoMediaIndex])}`
