@@ -15,6 +15,7 @@ export class Player {
   private audioSourceBuffer?: SourceBuffer;
   private videoSets: any;
   private audioSets: any;
+  private metric: any[] = [];
 
   private FETCH_TIME = 20;
 
@@ -84,6 +85,10 @@ export class Player {
     if (this.automaticQuality) return -1;
 
     return this.videoQualityIndex;
+  }
+
+  get measuredMetric() {
+    return this.metric;
   }
 
   clear(): void {
@@ -332,14 +337,12 @@ export class Player {
 
   handleReadDataFinish(finishForThrottle: any) {
     return (err: any) => {
-      this.videoQueue.resetByteCounter();
-      this.reading = false;
-
-      if (err) {
-        return;
+      if (!err) {
+        finishForThrottle();
       }
 
-      finishForThrottle();
+      this.videoQueue.resetByteCounter();
+      this.reading = false;
     }
   }
 
@@ -348,10 +351,33 @@ export class Player {
     this.retryTimer.increase();
   }
 
+  _measureMetric(): void {
+    const resolution = this.videoSets.representations[this.videoQualityIndex].url.split('/').at(-1).split('_')[0];
+    const width = +resolution.split('x')[0];
+    const height = +resolution.split('x')[1];
+    const duration = this.videoSets.representations[0].timestamp_info.media[1].timecode - this.videoSets.representations[0].timestamp_info.media[0].timecode;
+    const lastMetric = this.metric.at(-1);
+    if (this.metric.length === 0 || lastMetric.width !== width || lastMetric.height !== height) {
+      this.metric.push({
+        duration,
+        width,
+        height
+      })
+    }
+    else {
+      this.metric[this.metric.length - 1] = {
+        ...lastMetric,
+        duration: lastMetric.duration + duration
+      }
+    }
+  }
+
   _throttleQualityOnFeedback(fetchCall: any) {
     let bufferDuration = this._calcDuration();
     let startTime = Date.now();
     fetchCall(() => {
+      this._measureMetric();
+
       if (!this.automaticQuality) return;
 
       let endTime = Date.now();
@@ -362,11 +388,103 @@ export class Player {
 
       if (fetchDuration < 0.5 * bufferDuration && this.videoQualityIndex !== maxQualityIndex) {
         this.videoQualityIndex++;
+
+        this.FETCH_TIME = this.FETCH_TIME + 10;
       }
 
-      if (fetchDuration > 0.75 * bufferDuration && this.videoQualityIndex !== lowestQualityIndex) {
+      else if (fetchDuration > 0.75 * bufferDuration && this.videoQualityIndex !== lowestQualityIndex) {
         this.videoQualityIndex--;
+
+        this.FETCH_TIME = Math.max(this.FETCH_TIME - 10, 20);
       }
+
+      else {
+        this.FETCH_TIME = this.FETCH_TIME + 10;
+      }
+    });
+  }
+
+  _throttleQualityOnFeedback2(fetchCall: any) {
+    const startTime = Date.now();
+    fetchCall(() => {
+      this._measureMetric();
+
+      if (!this.automaticQuality) return;
+
+      const endTime = Date.now();
+
+      const fetchDuration = (endTime - startTime) / 1000;
+
+      const transferred = this.videoQueue.numBytesWrittenInSegment;
+      const bps = transferred / fetchDuration;
+
+      const newIndex = [...this.videoSets.representations].findLastIndex((representation: any) => {
+        const nextIndex = this.videoMediaIndex + 1;
+        const nextSegment = representation.timestamp_info.media[nextIndex];
+        if (!nextSegment) {
+          return false;
+        }
+
+        const size = nextSegment.size;
+        const length = nextSegment.timecode - representation.timestamp_info.media[this.videoMediaIndex].timecode;
+        const requiredBps = size / length;
+
+        return requiredBps < bps;
+      });
+
+      if (newIndex >= 0) {
+        if (this.videoQualityIndex > newIndex) {
+          this.FETCH_TIME = Math.max(this.FETCH_TIME - 10, 20);
+        }
+        else {
+          this.FETCH_TIME = this.FETCH_TIME + 10;
+        }
+
+        this.videoQualityIndex = newIndex;
+      }
+    });
+  }
+
+  _throttleQualityOnFeedback3(fetchCall: any) {
+    const startTime = Date.now();
+    fetchCall(() => {
+      this._measureMetric();
+
+      if (!this.automaticQuality) return;
+
+      const endTime = Date.now();
+
+      const fetchDuration = (endTime - startTime) / 1000;
+
+      const transferred = this.videoQueue.numBytesWrittenInSegment;
+      const bps = transferred / fetchDuration;
+
+      let newIndex = [...this.videoSets.representations].findLastIndex((representation: any) => {
+        const nextIndex = this.videoMediaIndex + 1;
+        const nextSegment = representation.timestamp_info.media[nextIndex];
+        if (!nextSegment) {
+          return false;
+        }
+
+        const size = nextSegment.size;
+        const length = 
+          nextSegment.timecode - representation.timestamp_info.media[this.videoMediaIndex].timecode + 
+          (Math.max(this.getBufferedFromCurrentTime(this.videoElement.currentTime) - this.videoElement.currentTime - 5, 0));
+        const requiredBps = size / length;
+
+        return requiredBps < bps;
+      });
+
+      if (newIndex >= 0) {
+        if (this.videoQualityIndex > newIndex) {
+          this.FETCH_TIME = Math.max(this.FETCH_TIME - 10, 20);
+        }
+        else {
+          this.FETCH_TIME = this.FETCH_TIME + 10;
+        }
+      }
+
+      this.videoQualityIndex = newIndex >= 0 ? newIndex : 0;
     });
   }
 
